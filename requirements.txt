@@ -1,0 +1,6 @@
+anthropic>=0.18.0
+requests>=2.31.0
+streamlit>=1.32.0
+weasyprint>=60.0
+markdown2>=2.4.0
+tomli>=2.0.0; python_version < "3.11"
