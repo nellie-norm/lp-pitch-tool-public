@@ -301,7 +301,7 @@ Output as JSON with the following structure. IMPORTANT: All values must be plain
 
     "conversation_starters": "Format as:\\n\\n1. First conversation starter or question to ask them...\\n\\n2. Second conversation starter...\\n\\n3. Third conversation starter...",
 
-    "risks_to_address": "Format as:\\n\\n**Concern 1 Title**\\nExplanation and how to address it...\\n\\n**Concern 2 Title**\\nExplanation and how to address it...\\n\\n(Include 2-4 potential concerns with clear line breaks between each)"
+    "risks_to_address": "Format as:\\n\\n**Concern Title:** Explanation and how to address it...\\n\\n**Another Concern:** Explanation and how to address it...\\n\\n(Include 2-4 potential concerns, each with colon after bold title)"
 }}
 
 Return ONLY valid JSON, no other text."""
