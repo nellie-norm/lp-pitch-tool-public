@@ -301,7 +301,7 @@ Output as JSON with the following structure. IMPORTANT: All values must be plain
 
     "conversation_starters": "Format as:\\n\\n1. First conversation starter or question to ask them...\\n\\n2. Second conversation starter...\\n\\n3. Third conversation starter...",
 
-    "risks_to_address": "Any concerns this LP might have about Bramble and how to proactively address them. Write as prose or use **Concern**: Response format."
+    "risks_to_address": "Format as:\\n\\n**Concern 1 Title**\\nExplanation and how to address it...\\n\\n**Concern 2 Title**\\nExplanation and how to address it...\\n\\n(Include 2-4 potential concerns with clear line breaks between each)"
 }}
 
 Return ONLY valid JSON, no other text."""
