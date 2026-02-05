@@ -214,23 +214,15 @@ if "pitch" in st.session_state:
     col1, col2 = st.columns(2)
 
     with col1:
-        # PDF export (not available on Streamlit Cloud due to system dependencies)
-        try:
-            from pdf_generator import generate_pdf
-            pdf_bytes = generate_pdf(lp_name, pitch, research)
-            st.download_button(
-                "Download as PDF",
-                pdf_bytes,
-                file_name=f"bramble_pitch_{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                mime="application/pdf"
-            )
-        except (ImportError, OSError):
-            st.download_button(
-                "Download as Markdown",
-                md_output,
-                file_name=f"bramble_pitch_{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.md",
-                mime="text/markdown"
-            )
+        # PDF export
+        from pdf_generator import generate_pdf
+        pdf_bytes = generate_pdf(lp_name, pitch, research)
+        st.download_button(
+            "Download as PDF",
+            pdf_bytes,
+            file_name=f"bramble_pitch_{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf"
+        )
 
     with col2:
         # Save to pitches folder

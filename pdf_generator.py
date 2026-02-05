@@ -1,121 +1,173 @@
 #!/usr/bin/env python3
 """
 PDF Generator for Bramble LP Pitch Tool
-Converts pitch content to a styled PDF using weasyprint.
+Converts pitch content to a styled PDF using fpdf2 (pure Python, works on Streamlit Cloud).
 """
 
 import io
+import re
 from datetime import datetime
-
-try:
-    from weasyprint import HTML, CSS
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-
-try:
-    import markdown2
-    MARKDOWN_AVAILABLE = True
-except ImportError:
-    MARKDOWN_AVAILABLE = False
+from fpdf import FPDF
 
 
-# Bramble-styled CSS
-PDF_CSS = """
-@page {
-    size: A4;
-    margin: 2cm 2.5cm;
-    @bottom-right {
-        content: counter(page);
-        font-size: 10px;
-        color: #666;
-    }
-}
+# Bramble brand colors (RGB)
+BRAMBLE_GREEN = (45, 80, 22)  # #2d5016
+GOLD_ACCENT = (201, 162, 39)  # #c9a227
+CREAM_BG = (248, 246, 240)    # #f8f6f0
+DARK_TEXT = (51, 51, 51)      # #333333
 
-body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 11pt;
-    line-height: 1.5;
-    color: #333;
-}
 
-h1 {
-    color: #2d5016;
-    font-size: 24pt;
-    font-weight: 600;
-    border-bottom: 3px solid #c9a227;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-}
+class BramblePDF(FPDF):
+    """Custom PDF class with Bramble branding."""
 
-h2 {
-    color: #2d5016;
-    font-size: 14pt;
-    font-weight: 600;
-    margin-top: 25px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 5px;
-}
+    def __init__(self):
+        super().__init__()
+        self.set_auto_page_break(auto=True, margin=25)
 
-h3 {
-    color: #555;
-    font-size: 12pt;
-    font-weight: 600;
-    margin-top: 15px;
-    margin-bottom: 8px;
-}
+    def header(self):
+        pass  # No header
 
-.subtitle {
-    color: #666;
-    font-size: 10pt;
-    margin-bottom: 30px;
-}
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Helvetica', 'I', 8)
+        self.set_text_color(102, 102, 102)
+        self.cell(0, 10, f'Page {self.page_no()}', align='R')
 
-.summary-box {
-    background-color: #f8f6f0;
-    border-left: 4px solid #c9a227;
-    padding: 15px;
-    margin: 15px 0;
-}
+    def add_title(self, text):
+        self.set_font('Helvetica', 'B', 24)
+        self.set_text_color(*BRAMBLE_GREEN)
+        self.cell(0, 12, text, ln=True)
+        # Gold underline
+        self.set_draw_color(*GOLD_ACCENT)
+        self.set_line_width(1)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(8)
 
-.hook-box {
-    background-color: #e8f4e8;
-    border: 1px solid #2d5016;
-    border-radius: 5px;
-    padding: 15px;
-    margin: 15px 0;
-    font-style: italic;
-}
+    def add_subtitle(self, text):
+        self.set_font('Helvetica', '', 10)
+        self.set_text_color(102, 102, 102)
+        self.multi_cell(0, 5, text)
+        self.ln(8)
 
-.warning-box {
-    background-color: #fff8e6;
-    border-left: 4px solid #c9a227;
-    padding: 15px;
-    margin: 15px 0;
-}
+    def add_section_header(self, text):
+        self.ln(5)
+        self.set_font('Helvetica', 'B', 14)
+        self.set_text_color(*BRAMBLE_GREEN)
+        self.cell(0, 8, text, ln=True)
+        # Light underline
+        self.set_draw_color(200, 200, 200)
+        self.set_line_width(0.3)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(4)
 
-p {
-    margin-bottom: 10px;
-}
+    def add_highlight_box(self, text, box_type='default'):
+        """Add a highlighted box with content."""
+        self.ln(2)
+        x = self.get_x()
+        y = self.get_y()
 
-strong {
-    color: #2d5016;
-}
+        # Set colors based on box type
+        if box_type == 'hook':
+            bg_color = (232, 244, 232)  # Light green
+            border_color = BRAMBLE_GREEN
+        elif box_type == 'warning':
+            bg_color = (255, 248, 230)  # Light yellow
+            border_color = GOLD_ACCENT
+        else:
+            bg_color = CREAM_BG
+            border_color = GOLD_ACCENT
 
-.section {
-    margin-bottom: 20px;
-    page-break-inside: avoid;
-}
+        # Calculate height needed
+        self.set_font('Helvetica', '', 11)
+        # Estimate lines needed
+        text_width = 175
+        lines = len(text) / 80 + text.count('\n') + 1
+        box_height = max(lines * 6 + 10, 20)
 
-.footer {
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #ddd;
-    font-size: 9pt;
-    color: #666;
-}
-"""
+        # Draw background
+        self.set_fill_color(*bg_color)
+        self.rect(x, y, 190, box_height, 'F')
+
+        # Draw left border
+        self.set_draw_color(*border_color)
+        self.set_line_width(1.2)
+        self.line(x, y, x, y + box_height)
+
+        # Add text
+        self.set_xy(x + 5, y + 4)
+        self.set_text_color(*DARK_TEXT)
+        self._add_formatted_text(text, text_width)
+
+        self.set_y(y + box_height + 4)
+
+    def add_body_text(self, text):
+        """Add body text with markdown-style bold support."""
+        self.set_font('Helvetica', '', 11)
+        self.set_text_color(*DARK_TEXT)
+        self._add_formatted_text(text, 185)
+        self.ln(3)
+
+    def _add_formatted_text(self, text, width):
+        """Add text with **bold** markdown support."""
+        if not text:
+            return
+
+        # Split into paragraphs
+        paragraphs = text.split('\n\n')
+
+        for i, para in enumerate(paragraphs):
+            if not para.strip():
+                continue
+
+            # Handle single newlines as line breaks
+            lines = para.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Parse **bold** markers
+                parts = re.split(r'(\*\*[^*]+\*\*)', line)
+
+                x_start = self.get_x()
+                current_x = x_start
+
+                for part in parts:
+                    if part.startswith('**') and part.endswith('**'):
+                        # Bold text
+                        bold_text = part[2:-2]
+                        self.set_font('Helvetica', 'B', 11)
+                        self.set_text_color(*BRAMBLE_GREEN)
+                        part_width = self.get_string_width(bold_text)
+
+                        if current_x + part_width > x_start + width:
+                            self.ln(5)
+                            current_x = x_start
+
+                        self.set_x(current_x)
+                        self.cell(part_width, 5, bold_text)
+                        current_x += part_width
+                    elif part:
+                        # Regular text
+                        self.set_font('Helvetica', '', 11)
+                        self.set_text_color(*DARK_TEXT)
+
+                        words = part.split(' ')
+                        for word in words:
+                            if not word:
+                                continue
+                            word_width = self.get_string_width(word + ' ')
+                            if current_x + word_width > x_start + width:
+                                self.ln(5)
+                                current_x = x_start
+                            self.set_x(current_x)
+                            self.cell(word_width, 5, word + ' ')
+                            current_x += word_width
+
+                self.ln(5)
+
+            if i < len(paragraphs) - 1:
+                self.ln(3)
 
 
 def generate_pdf(lp_name: str, pitch: dict, research: dict) -> bytes:
@@ -130,128 +182,57 @@ def generate_pdf(lp_name: str, pitch: dict, research: dict) -> bytes:
     Returns:
         PDF as bytes
     """
-    if not WEASYPRINT_AVAILABLE:
-        raise ImportError("weasyprint is required for PDF generation")
+    pdf = BramblePDF()
+    pdf.add_page()
 
-    # Build HTML content
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Bramble Pitch - {lp_name}</title>
-    </head>
-    <body>
-        <h1>Bramble Investments</h1>
-        <p class="subtitle">Personalised Pitch for <strong>{lp_name}</strong><br>
-        Generated: {datetime.now().strftime('%d %B %Y')}</p>
+    # Title
+    pdf.add_title("Bramble Investments")
+    pdf.add_subtitle(f"Personalised Pitch for {lp_name}\nGenerated: {datetime.now().strftime('%d %B %Y')}")
 
-        <div class="section">
-            <h2>LP Profile</h2>
-            <div class="summary-box">
-                {_escape_html(pitch.get('lp_summary', 'N/A'))}
-            </div>
-        </div>
+    # LP Profile
+    pdf.add_section_header("LP Profile")
+    pdf.add_highlight_box(pitch.get('lp_summary', 'N/A'))
 
-        <div class="section">
-            <h2>Opening Hook</h2>
-            <div class="hook-box">
-                {_escape_html(pitch.get('opening_hook', 'N/A'))}
-            </div>
-        </div>
+    # Opening Hook
+    pdf.add_section_header("Opening Hook")
+    pdf.add_highlight_box(pitch.get('opening_hook', 'N/A'), box_type='hook')
 
-        <div class="section">
-            <h2>Investment Thesis Framing</h2>
-            {_format_content(pitch.get('thesis_framing', 'N/A'))}
-        </div>
+    # Thesis Framing
+    pdf.add_section_header("Investment Thesis Framing")
+    pdf.add_body_text(pitch.get('thesis_framing', 'N/A'))
 
-        <div class="section">
-            <h2>Market Tailwinds to Emphasise</h2>
-            {_format_content(pitch.get('tailwinds_emphasis', 'N/A'))}
-        </div>
+    # Tailwinds
+    pdf.add_section_header("Market Tailwinds to Emphasise")
+    pdf.add_body_text(pitch.get('tailwinds_emphasis', 'N/A'))
 
-        <div class="section">
-            <h2>Team & Advisors to Feature</h2>
-            {_format_content(pitch.get('team_highlights', 'N/A'))}
-        </div>
+    # Team
+    pdf.add_section_header("Team & Advisors to Feature")
+    pdf.add_body_text(pitch.get('team_highlights', 'N/A'))
 
-        <div class="section">
-            <h2>Value-Add Framing</h2>
-            {_format_content(pitch.get('value_add_framing', 'N/A'))}
-        </div>
+    # Value-Add
+    pdf.add_section_header("Value-Add Framing")
+    pdf.add_body_text(pitch.get('value_add_framing', 'N/A'))
 
-        <div class="section">
-            <h2>Anticipated Questions</h2>
-            {_format_content(pitch.get('anticipated_questions', 'N/A'))}
-        </div>
+    # Questions
+    pdf.add_section_header("Anticipated Questions")
+    pdf.add_body_text(pitch.get('anticipated_questions', 'N/A'))
 
-        <div class="section">
-            <h2>Conversation Starters</h2>
-            {_format_content(pitch.get('conversation_starters', 'N/A'))}
-        </div>
+    # Conversation Starters
+    pdf.add_section_header("Conversation Starters")
+    pdf.add_body_text(pitch.get('conversation_starters', 'N/A'))
 
-        <div class="section">
-            <h2>Potential Concerns to Address</h2>
-            <div class="warning-box">
-                {_format_content(pitch.get('risks_to_address', 'N/A'))}
-            </div>
-        </div>
+    # Concerns
+    pdf.add_section_header("Potential Concerns to Address")
+    pdf.add_highlight_box(pitch.get('risks_to_address', 'N/A'), box_type='warning')
 
-        <div class="footer">
-            <p>Prepared by Bramble LP Pitch Tool | Confidential</p>
-        </div>
-    </body>
-    </html>
-    """
+    # Footer
+    pdf.ln(10)
+    pdf.set_font('Helvetica', 'I', 9)
+    pdf.set_text_color(102, 102, 102)
+    pdf.cell(0, 10, "Prepared by Bramble LP Pitch Tool | Confidential", align='C')
 
-    # Generate PDF
-    pdf_buffer = io.BytesIO()
-    HTML(string=html_content).write_pdf(
-        pdf_buffer,
-        stylesheets=[CSS(string=PDF_CSS)]
-    )
-    pdf_buffer.seek(0)
-    return pdf_buffer.getvalue()
-
-
-def _escape_html(text: str) -> str:
-    """Escape HTML special characters."""
-    if not isinstance(text, str):
-        text = str(text)
-    return (text
-            .replace('&', '&amp;')
-            .replace('<', '&lt;')
-            .replace('>', '&gt;')
-            .replace('"', '&quot;'))
-
-
-def _format_content(text: str) -> str:
-    """Format content for HTML display, handling markdown-like formatting."""
-    if not isinstance(text, str):
-        # Handle case where it's still a list/array
-        if isinstance(text, list):
-            text = "\n\n".join(str(item) for item in text)
-        else:
-            text = str(text)
-
-    # Escape HTML first
-    text = _escape_html(text)
-
-    # Convert **bold** to <strong>
-    import re
-    text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
-
-    # Convert newlines to proper HTML
-    paragraphs = text.split('\n\n')
-    formatted = []
-    for p in paragraphs:
-        p = p.strip()
-        if p:
-            # Handle single newlines within paragraphs
-            p = p.replace('\n', '<br>')
-            formatted.append(f'<p>{p}</p>')
-
-    return '\n'.join(formatted)
+    # Output
+    return bytes(pdf.output())
 
 
 if __name__ == "__main__":
@@ -260,13 +241,12 @@ if __name__ == "__main__":
         "lp_summary": "Test LP is a family office focused on sustainable investments.",
         "opening_hook": "Bramble's thesis aligns perfectly with your focus.",
         "thesis_framing": "We emphasise **Sustainable Production** given your portfolio.",
-        "tailwinds_emphasis": "**GLP-1**: Relevant because...\n\n**AI**: Also relevant...",
-        "portfolio_highlights": "**Klura Labs**: Great fit because...",
-        "team_highlights": "**Henry Dimbleby**: Key for policy...",
-        "value_add_framing": "Our advisory practice provides...",
-        "anticipated_questions": "**Q: Why food?**\nA: Because...",
-        "conversation_starters": "1. Ask about their recent investment...",
-        "risks_to_address": "They may worry about fund size."
+        "tailwinds_emphasis": "**GLP-1:** Relevant because of health focus...\n\n**AI:** Also relevant for supply chain...",
+        "team_highlights": "**Henry Dimbleby:** Key for policy connections...",
+        "value_add_framing": "Our advisory practice provides unique insights.",
+        "anticipated_questions": "**Q: Why food?**\nA: Because food systems need transformation...",
+        "conversation_starters": "1. Ask about their recent investment in health tech...",
+        "risks_to_address": "**Fund Size:** They may worry about fund size. Address by emphasising focused portfolio."
     }
 
     pdf = generate_pdf("Test LP", test_pitch, {})
