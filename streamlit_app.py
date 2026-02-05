@@ -53,7 +53,22 @@ st.markdown("""
         background-color: #2d5016;
         color: white;
     }
+    .hotkey-hint {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 0.5rem;
+    }
 </style>
+<script>
+    document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            const buttons = window.parent.document.querySelectorAll('button[kind="primary"]');
+            if (buttons.length > 0) {
+                buttons[0].click();
+            }
+        }
+    });
+</script>
 """, unsafe_allow_html=True)
 
 # =============================================================================
@@ -112,7 +127,7 @@ context = st.text_area(
 # GENERATE
 # =============================================================================
 
-if st.button("Generate Personalised Pitch", type="primary", use_container_width=True):
+if st.button("Generate Personalised Pitch  ⌘↵", type="primary", use_container_width=True):
     if not lp_name:
         st.error("Please enter an LP name")
     else:
