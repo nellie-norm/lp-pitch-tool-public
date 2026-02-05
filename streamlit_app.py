@@ -214,27 +214,13 @@ if "pitch" in st.session_state:
     # Generate markdown output
     md_output = format_pitch_output(lp_name, research, pitch)
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # PDF export
-        from pdf_generator import generate_pdf
-        pdf_bytes = generate_pdf(lp_name, pitch, research)
-        st.download_button(
-            "Download as PDF",
-            pdf_bytes,
-            file_name=f"bramble_pitch_{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf"
-        )
-
-    with col2:
-        # Save to pitches folder
-        if st.button("Save to Pitches Folder"):
-            os.makedirs("pitches", exist_ok=True)
-            filename = f"pitches/{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.md"
-            with open(filename, "w") as f:
-                f.write(md_output)
-            st.success(f"Saved to {filename}")
+    st.download_button(
+        "Download as Markdown",
+        md_output,
+        file_name=f"bramble_pitch_{lp_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.md",
+        mime="text/markdown",
+        use_container_width=True
+    )
 
 # =============================================================================
 # REFERENCE SECTION
