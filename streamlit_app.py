@@ -53,22 +53,7 @@ st.markdown("""
         background-color: #2d5016;
         color: white;
     }
-    .hotkey-hint {
-        font-size: 0.8rem;
-        color: #888;
-        margin-top: 0.5rem;
-    }
 </style>
-<script>
-    document.addEventListener('keydown', function(e) {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-            const buttons = window.parent.document.querySelectorAll('button[kind="primary"]');
-            if (buttons.length > 0) {
-                buttons[0].click();
-            }
-        }
-    });
-</script>
 """, unsafe_allow_html=True)
 
 # =============================================================================
@@ -111,23 +96,26 @@ with st.sidebar:
 # MAIN INPUT
 # =============================================================================
 
-lp_name = st.text_input(
-    "LP / Investor Name",
-    placeholder="e.g., Family Office X, Pension Fund Y, Strategic Investor Z",
-    help="Enter the name of the LP you're meeting with"
-)
+with st.form("pitch_form"):
+    lp_name = st.text_input(
+        "LP / Investor Name",
+        placeholder="e.g., Family Office X, Pension Fund Y, Strategic Investor Z",
+        help="Enter the name of the LP you're meeting with"
+    )
 
-context = st.text_area(
-    "Notes & Context (optional)",
-    placeholder="e.g., Family office focused on health tech, met at a conference, introduced by Michael Jary, interested in gut health thesis, concerned about fund size...",
-    help="Any context to help research and personalise the pitch"
-)
+    context = st.text_area(
+        "Notes & Context (optional)",
+        placeholder="e.g., Family office focused on health tech, met at a conference, introduced by Michael Jary, interested in gut health thesis, concerned about fund size...",
+        help="Any context to help research and personalise the pitch"
+    )
+
+    submitted = st.form_submit_button("Generate Personalised Pitch", type="primary", use_container_width=True)
 
 # =============================================================================
 # GENERATE
 # =============================================================================
 
-if st.button("Generate Personalised Pitch  ⌘↵", type="primary", use_container_width=True):
+if submitted:
     if not lp_name:
         st.error("Please enter an LP name")
     else:
