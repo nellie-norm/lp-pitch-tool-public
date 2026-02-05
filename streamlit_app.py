@@ -102,16 +102,10 @@ lp_name = st.text_input(
     help="Enter the name of the LP you're meeting with"
 )
 
-additional_context = st.text_area(
-    "Additional Context (optional)",
-    placeholder="e.g., They're a family office focused on health tech, met them at a conference last month, introduced by Michael Jary...",
-    help="Any context that would help personalise the research"
-)
-
-team_notes = st.text_area(
-    "Team Notes (optional)",
-    placeholder="e.g., They've expressed interest in our gut health thesis, concerned about fund size, want to understand our edge vs generalist funds...",
-    help="Internal notes or insights to incorporate"
+context = st.text_area(
+    "Notes & Context (optional)",
+    placeholder="e.g., Family office focused on health tech, met at a conference, introduced by Michael Jary, interested in gut health thesis, concerned about fund size...",
+    help="Any context to help research and personalise the pitch"
 )
 
 # =============================================================================
@@ -125,7 +119,7 @@ if st.button("Generate Personalised Pitch", type="primary", use_container_width=
         # Research phase
         with st.status("Researching LP...", expanded=True) as status:
             st.write(f"Querying Perplexity for information on {lp_name}...")
-            research = research_lp(lp_name, additional_context)
+            research = research_lp(lp_name, context)
 
             if research.get("error"):
                 st.warning(f"Research note: {research['error']}")
@@ -140,7 +134,7 @@ if st.button("Generate Personalised Pitch", type="primary", use_container_width=
         # Generation phase
         with st.status("Generating personalised pitch...", expanded=True) as status:
             st.write("Analysing LP profile and generating tailored content...")
-            pitch = generate_personalized_pitch(lp_name, research.get("research", ""), team_notes)
+            pitch = generate_personalized_pitch(lp_name, research.get("research", ""), context)
 
             if pitch.get("error"):
                 st.error(f"Generation error: {pitch['error']}")
