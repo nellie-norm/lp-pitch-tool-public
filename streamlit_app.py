@@ -7,6 +7,8 @@ import streamlit as st
 import os
 from datetime import datetime
 from lp_pitch import research_lp, generate_personalized_pitch, format_pitch_output, BRAMBLE_PITCH
+from PyPDF2 import PdfReader
+import io
 
 # =============================================================================
 # PAGE CONFIG
@@ -109,6 +111,12 @@ with st.form("pitch_form"):
         help="Any context to help research and personalise the pitch"
     )
 
+    uploaded_pdf = st.file_uploader(
+        "Upload LP Document (optional)",
+        type=["pdf"],
+        help="Drag and drop an investment thesis, annual report, or other LP document to include as context"
+    )
+
     submitted = st.form_submit_button("Generate Personalised Pitch", type="primary", use_container_width=True)
 
 # =============================================================================
@@ -119,10 +127,29 @@ if submitted:
     if not lp_name:
         st.error("Please enter an LP name")
     else:
+        # Extract PDF text if uploaded
+        pdf_text = ""
+        if uploaded_pdf is not None:
+            try:
+                reader = PdfReader(io.BytesIO(uploaded_pdf.read()))
+                pages = [page.extract_text() for page in reader.pages if page.extract_text()]
+                pdf_text = "\n".join(pages)
+                if pdf_text:
+                    st.success(f"Extracted text from {len(pages)} page(s)")
+                else:
+                    st.warning("Could not extract text from PDF (it may be scanned/image-based)")
+            except Exception as e:
+                st.warning(f"Could not read PDF: {e}")
+
+        # Combine context with PDF content
+        combined_context = context
+        if pdf_text:
+            combined_context = f"{context}\n\n--- UPLOADED DOCUMENT ---\n{pdf_text}" if context else f"--- UPLOADED DOCUMENT ---\n{pdf_text}"
+
         # Research phase
         with st.status("Researching LP...", expanded=True) as status:
             st.write(f"Querying Perplexity for information on {lp_name}...")
-            research = research_lp(lp_name, context)
+            research = research_lp(lp_name, combined_context)
 
             if research.get("error"):
                 st.warning(f"Research note: {research['error']}")
@@ -137,7 +164,7 @@ if submitted:
         # Generation phase
         with st.status("Generating personalised pitch...", expanded=True) as status:
             st.write("Analysing LP profile and generating tailored content...")
-            pitch = generate_personalized_pitch(lp_name, research.get("research", ""), context)
+            pitch = generate_personalized_pitch(lp_name, research.get("research", ""), combined_context)
 
             if pitch.get("error"):
                 st.error(f"Generation error: {pitch['error']}")
