@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from lp_pitch import research_lp, generate_personalized_pitch, format_pitch_output, BRAMBLE_PITCH
 from PyPDF2 import PdfReader
+from docx import Document
 import io
 
 # =============================================================================
@@ -19,6 +20,24 @@ st.set_page_config(
     page_icon="🌿",
     layout="wide"
 )
+
+# =============================================================================
+# PASSWORD GATE
+# =============================================================================
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.markdown("### Bramble LP Pitch Tool")
+    password = st.text_input("Enter password to continue", type="password")
+    if password:
+        if password == st.secrets["APP_PASSWORD"]:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+    st.stop()
 
 # =============================================================================
 # STYLING
@@ -111,10 +130,10 @@ with st.form("pitch_form"):
         help="Any context to help research and personalise the pitch"
     )
 
-    uploaded_pdf = st.file_uploader(
+    uploaded_doc = st.file_uploader(
         "Upload LP Document (optional)",
-        type=["pdf"],
-        help="Drag and drop an investment thesis, annual report, or other LP document to include as context"
+        type=["pdf", "docx"],
+        help="Drag and drop an investment thesis, annual report, or other LP document (PDF or Word) to include as context"
     )
 
     submitted = st.form_submit_button("Generate Personalised Pitch", type="primary", use_container_width=True)
@@ -127,24 +146,34 @@ if submitted:
     if not lp_name:
         st.error("Please enter an LP name")
     else:
-        # Extract PDF text if uploaded
-        pdf_text = ""
-        if uploaded_pdf is not None:
+        # Extract text from uploaded document
+        doc_text = ""
+        if uploaded_doc is not None:
             try:
-                reader = PdfReader(io.BytesIO(uploaded_pdf.read()))
-                pages = [page.extract_text() for page in reader.pages if page.extract_text()]
-                pdf_text = "\n".join(pages)
-                if pdf_text:
-                    st.success(f"Extracted text from {len(pages)} page(s)")
-                else:
-                    st.warning("Could not extract text from PDF (it may be scanned/image-based)")
+                file_bytes = uploaded_doc.read()
+                if uploaded_doc.name.lower().endswith(".pdf"):
+                    reader = PdfReader(io.BytesIO(file_bytes))
+                    pages = [page.extract_text() for page in reader.pages if page.extract_text()]
+                    doc_text = "\n".join(pages)
+                    if doc_text:
+                        st.success(f"Extracted text from {len(pages)} page(s)")
+                    else:
+                        st.warning("Could not extract text from PDF (it may be scanned/image-based)")
+                elif uploaded_doc.name.lower().endswith(".docx"):
+                    doc = Document(io.BytesIO(file_bytes))
+                    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+                    doc_text = "\n".join(paragraphs)
+                    if doc_text:
+                        st.success(f"Extracted text from Word document ({len(paragraphs)} paragraphs)")
+                    else:
+                        st.warning("Could not extract text from Word document")
             except Exception as e:
-                st.warning(f"Could not read PDF: {e}")
+                st.warning(f"Could not read document: {e}")
 
-        # Combine context with PDF content
+        # Combine context with document content
         combined_context = context
-        if pdf_text:
-            combined_context = f"{context}\n\n--- UPLOADED DOCUMENT ---\n{pdf_text}" if context else f"--- UPLOADED DOCUMENT ---\n{pdf_text}"
+        if doc_text:
+            combined_context = f"{context}\n\n--- UPLOADED DOCUMENT ---\n{doc_text}" if context else f"--- UPLOADED DOCUMENT ---\n{doc_text}"
 
         # Research phase
         with st.status("Researching LP...", expanded=True) as status:
